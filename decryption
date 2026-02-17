@@ -1,0 +1,112 @@
+`timescale 1ns / 1ps
+
+module decrypt_core (
+    input  wire [7:0] encrypted_data,
+    output wire [7:0] decrypted_data
+);
+
+
+wire [7:0] step1_xor;
+wire [7:0] step2_swap;
+wire [7:0] step3_rotate;
+wire [7:0] step4_sbox;
+wire [7:0] step5_xor;
+wire [7:0] step6_rotate;
+wire [7:0] step7_nibble;
+
+wire [3:0] upper_in, lower_in;
+wire [3:0] upper_out, lower_out;
+
+
+reg [3:0] inv_upper_sbox [0:15];
+reg [3:0] inv_lower_sbox [0:15];
+
+
+assign step1_xor = encrypted_data ^ 8'hD2;
+
+// ==================================================
+// Step 2: Swap bit 3 and 4 (self-inverse)
+// ==================================================
+assign step2_swap = {
+    step1_xor[7],
+    step1_xor[6],
+    step1_xor[5],
+    step1_xor[3],
+    step1_xor[4],
+    step1_xor[2],
+    step1_xor[1],
+    step1_xor[0]
+};
+
+// ==================================================
+// Step 3: Rotate right 1
+// ==================================================
+assign step3_rotate = {step2_swap[0], step2_swap[7:1]};
+
+// ==================================================
+// Step 4: Inverse S-Box
+// ==================================================
+assign upper_in = step3_rotate[7:4];
+assign lower_in = step3_rotate[3:0];
+
+initial begin
+    // Inverse LOWER S-box
+    inv_lower_sbox[0]=4'h0;
+    inv_lower_sbox[1]=4'h4;
+    inv_lower_sbox[2]=4'h3;
+    inv_lower_sbox[3]=4'h6;
+    inv_lower_sbox[4]=4'h1;
+    inv_lower_sbox[5]=4'h5;
+    inv_lower_sbox[6]=4'h2;
+    inv_lower_sbox[7]=4'h7;
+    inv_lower_sbox[8]=4'h8;
+    inv_lower_sbox[9]=4'hC;
+    inv_lower_sbox[10]=4'hA;
+    inv_lower_sbox[11]=4'hE;
+    inv_lower_sbox[12]=4'h9;
+    inv_lower_sbox[13]=4'hD;
+    inv_lower_sbox[14]=4'hB;
+    inv_lower_sbox[15]=4'hF;
+
+    // Inverse UPPER S-box (same as original)
+    inv_upper_sbox[0]=4'hF;
+    inv_upper_sbox[1]=4'hE;
+    inv_upper_sbox[2]=4'hD;
+    inv_upper_sbox[3]=4'hC;
+    inv_upper_sbox[4]=4'hB;
+    inv_upper_sbox[5]=4'hA;
+    inv_upper_sbox[6]=4'h9;
+    inv_upper_sbox[7]=4'h8;
+    inv_upper_sbox[8]=4'h7;
+    inv_upper_sbox[9]=4'h6;
+    inv_upper_sbox[10]=4'h5;
+    inv_upper_sbox[11]=4'h4;
+    inv_upper_sbox[12]=4'h3;
+    inv_upper_sbox[13]=4'h2;
+    inv_upper_sbox[14]=4'h1;
+    inv_upper_sbox[15]=4'h0;
+end
+
+assign upper_out = inv_upper_sbox[upper_in];
+assign lower_out = inv_lower_sbox[lower_in];
+
+assign step4_sbox = {upper_out, lower_out};
+
+// ==================================================
+// Step 5: XOR with first key (0x93)
+// ==================================================
+assign step5_xor = step4_sbox ^ 8'h93;
+
+// ==================================================
+// Step 6: Rotate right 2
+// ==================================================
+assign step6_rotate = {step5_xor[1:0], step5_xor[7:2]};
+
+// ==================================================
+// Step 7: Nibble swap
+// ==================================================
+assign step7_nibble = {step6_rotate[3:0], step6_rotate[7:4]};
+
+assign decrypted_data = step7_nibble;
+
+endmodule
