@@ -1,0 +1,53 @@
+#include "xparameters.h"
+#include "xgpio.h"
+#include "xil_printf.h"
+#include "sleep.h"
+
+#define GPIO_DEVICE_ID  XPAR_AXI_GPIO_0_DEVICE_ID
+
+#define CH_WRITE  1   // Channel 1 = Output
+#define CH_READ   2   // Channel 2 = Input
+
+XGpio Gpio;
+
+int main()
+{
+    int Status;
+    u8 encrypted;
+    u8 decrypted;
+
+    // Initialize GPIO
+    Status = XGpio_Initialize(&Gpio, GPIO_DEVICE_ID);
+    if (Status != XST_SUCCESS)
+    {
+        xil_printf("GPIO Init Failed\r\n");
+        return -1;
+    }
+
+    // Channel 1 as output (PS -> PL)
+    XGpio_SetDataDirection(&Gpio, CH_WRITE, 0x00);
+
+    // Channel 2 as input (PL -> PS)
+    XGpio_SetDataDirection(&Gpio, CH_READ, 0xFF);
+
+    xil_printf("\r\nDecryption Test Started\r\n");
+
+    // Example encrypted value (change if needed)
+    encrypted = 0x84;
+
+    // Send encrypted value to PL
+    XGpio_DiscreteWrite(&Gpio, CH_WRITE, encrypted);
+
+    // Small delay for combinational logic
+    usleep(1);
+
+    // Read decrypted value from PL
+    decrypted = XGpio_DiscreteRead(&Gpio, CH_READ);
+
+    xil_printf("Encrypted  : 0x%02X\r\n", encrypted);
+    xil_printf("Decrypted  : 0x%02X\r\n", decrypted);
+
+    while(1);
+
+    return 0;
+}
